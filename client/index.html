@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ja" ng-app>
+  <head>
+    <title>みんなの単語帳</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/bootstrap-responsive.min.css">
+    <style>
+      body {
+        padding-top: 60px;
+      }
+    </style>
+    <script>
+    /*
+      var myfunc = function mycallback(data){
+        alert(data);
+      }
+    */  
+      function SearchController($scope) {
+        var socket = io.connect();
+        $scope.searchword = '';
+
+        socket.on('connect', function () {
+        });
+
+        $scope.send = function WordSearch() {
+          console.log('WordSearch :', $scope.searchword);
+          socket.emit('wordsearch', $scope.searchword);
+        };
+
+      }
+
+      var searchword = "";
+      
+      function WordController($scope){
+        var socket = io.connect();
+        $scope.words = [];
+        
+        dbctrl.on('find',function($words){
+          $scope.words.push($words);
+          $scope.$apply();
+        });
+
+/*        
+        socket.on('wordsearchresult', function ($words) {
+          searchword = $words.word;
+          $scope.words.push($words);
+          $scope.$apply();
+        });
+*/        
+      }
+      
+      function SearchResultController($scope){
+        var socket = io.connect();
+        socket.on('gettoken', function (token) {
+          var appid = 'Bearer '+ token.token;
+          
+
+          $.ajax({
+            url: 'https://api.microsofttranslator.com/V2/Ajax.svc/Translate',
+//            url: 'https://api.microsofttranslator.com/V2/Ajax.svc/GetTranslations',
+            dataType: 'jsonp',
+            jsonp: 'oncomplete',
+//            crossDomain: true,
+            jsonpCallback:'myfunc',
+            data: {
+              appId: appid,
+              text: searchword,
+//              from: 'en',
+              to: 'ja',
+//              maxTranslations: '5',
+              contentType: 'text/plain'
+            },
+            success: function (data) {
+              $scope.result = data;
+              $scope.$apply();
+              // 結果を表示
+//              alert(data);
+            },
+            error: function(XMLHttpRequest, textStatus, errorThrown){
+              console.log(errorThrown);
+             
+            }
+            
+          });
+
+/*
+            var from = "ja", to = "es", text = searchword;
+
+            var s = document.createElement("script");
+            s.src = "https://api.microsofttranslator.com/V2/Ajax.svc/Translate" +
+                "?appId=Bearer " + encodeURIComponent(appid) +
+                "&from=" + encodeURIComponent(from) +
+                "&to=" + encodeURIComponent(to) +
+                "&text=" + encodeURIComponent(text) +
+                "&oncomplete=mycallback";
+            document.body.appendChild(s);
+*/
+        });
+        
+      }
+      
+    </script>
+  </head>
+  <body>
+    <div class="container" >
+      <div class="navbar navbar-fixed-top navbar-inverse">
+        <div class="navbar-inner">
+          <div class="pull-right">
+            <a href="https://c9.io" class="brand">WORD BOOK</a>
+          </div>
+        </div>
+      </div>
+      <div class="page-header">
+        <h1>みんなの単語帳</h1>
+      </div>
+      <div class="row" >
+        <div class="span9" ng-controller="SearchController">
+          <form class="form-inline"  ng-submit="send()">
+              <input type="text" ng-model="searchword" class="form-control input-lg"/>
+              <input type="submit" class="span1 btn btn-primary" value="検索" >
+<!--              <button ng-click="WordSearch()" type="submit" class="btn btn-primary btn-lg">検索</button>-->
+          </form>
+          <div class="span9" ng-controller="SearchResultController">
+            <p ng-bind="result"></p>
+          </div>
+        </div>
+        <div class="span3" ng-controller="WordController">
+          <ul class="nav nav-list well">
+            <li class="nav header">検索したワード</li>
+            <li ng-repeat="word in words">{{word.word}}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/angular.min.js"></script>
+  </body>
+</html>

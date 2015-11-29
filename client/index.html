@@ -15,46 +15,40 @@
       var myfunc = function mycallback(data){
         alert(data);
       }
-    */  
-      function SearchController($scope) {
+    */
+      var transword = "";
+      
+      function TransBodyController($scope){
         var socket = io.connect();
-        $scope.searchword = '';
+        socket.emit('connect');
+      }
+      
+      //1.翻訳ワードインプット
+      function TransController($scope) {
+        var socket = io.connect();
+        $scope.transword = '';
 
-        socket.on('connect', function () {
-        });
-
-        $scope.send = function WordSearch() {
-          console.log('WordSearch :', $scope.searchword);
-          socket.emit('wordsearch', $scope.searchword);
+        //1-1.翻訳ボタン実行時処理
+        $scope.send = function WordTrans() {
+          console.log('WordTrans :', $scope.transword);
+          
+          transword = $scope.transword;
+          
+          //サーバ側翻訳処理へワードを渡す
+          socket.emit('wordtrans', $scope.transword);
         };
 
       }
 
-      var searchword = "";
-      
-      function WordController($scope){
+      //3.翻訳の本実行
+      function TransResultController($scope){
         var socket = io.connect();
-        $scope.words = [];
         
-        dbctrl.on('find',function($words){
-          $scope.words.push($words);
-          $scope.$apply();
-        });
-
-/*        
-        socket.on('wordsearchresult', function ($words) {
-          searchword = $words.word;
-          $scope.words.push($words);
-          $scope.$apply();
-        });
-*/        
-      }
-      
-      function SearchResultController($scope){
-        var socket = io.connect();
+        //3-1.トークン取得後の翻訳処理
         socket.on('gettoken', function (token) {
-          var appid = 'Bearer '+ token.token;
           
+          //MicrosoftTranslatorの実行
+          var appid = 'Bearer '+ token.token;
 
           $.ajax({
             url: 'https://api.microsofttranslator.com/V2/Ajax.svc/Translate',
@@ -65,15 +59,18 @@
             jsonpCallback:'myfunc',
             data: {
               appId: appid,
-              text: searchword,
+              text: transword,
 //              from: 'en',
               to: 'ja',
 //              maxTranslations: '5',
               contentType: 'text/plain'
             },
             success: function (data) {
+              //3-1-1.翻訳成功
               $scope.result = data;
               $scope.$apply();
+              //3-1-2.サーバー側でDB登録
+              socket.emit("result",transword);
               // 結果を表示
 //              alert(data);
             },
@@ -99,10 +96,25 @@
         });
         
       }
+
+      function TransWordController($scope){
+        var socket = io.connect();
+
+        //翻訳ワードリスト        
+        socket.on('transwordlist', function ($words) {
+          $scope.words = [];
+          for( var i=0; i<$words.length; i++ ){
+            $scope.words.push($words[i]);
+          }
+          $scope.$apply();
+        });
+        
+      }
+      
       
     </script>
   </head>
-  <body>
+  <body ng-controller="TransBodyController">
     <div class="container" >
       <div class="navbar navbar-fixed-top navbar-inverse">
         <div class="navbar-inner">
@@ -115,20 +127,20 @@
         <h1>みんなの単語帳</h1>
       </div>
       <div class="row" >
-        <div class="span9" ng-controller="SearchController">
+        <div class="span9" ng-controller="TransController">
           <form class="form-inline"  ng-submit="send()">
-              <input type="text" ng-model="searchword" class="form-control input-lg"/>
-              <input type="submit" class="span1 btn btn-primary" value="検索" >
+              <input type="text" ng-model="transword" class="form-control input-lg"/>
+              <input type="submit" class="span1 btn btn-primary" value="翻訳" >
 <!--              <button ng-click="WordSearch()" type="submit" class="btn btn-primary btn-lg">検索</button>-->
           </form>
-          <div class="span9" ng-controller="SearchResultController">
+          <div class="span9" ng-controller="TransResultController">
             <p ng-bind="result"></p>
           </div>
         </div>
-        <div class="span3" ng-controller="WordController">
+        <div class="span3" ng-controller="TransWordController">
           <ul class="nav nav-list well">
             <li class="nav header">検索したワード</li>
-            <li ng-repeat="word in words">{{word.word}}</li>
+            <li ng-repeat="word in words">{{word.word}}({{word.count}})</li>
           </ul>
         </div>
       </div>
